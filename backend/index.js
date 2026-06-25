@@ -4,6 +4,7 @@ import cors from "cors"
 import connectDB from "./src/config/db.js"
 import passport from "./src/config/passport.js"
 import authRoutes from "./src/routes/auth.js"
+import subjectRoutes from "./src/routes/subjects.js"
 
 connectDB()
 
@@ -19,6 +20,7 @@ app.use(passport.initialize())
 
 // routes
 app.use('/api/auth', authRoutes)
+app.use('/api/subjects', subjectRoutes) 
 
 // test route
 app.get('/', (req, res) => {
