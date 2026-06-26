@@ -5,6 +5,8 @@ import connectDB from "./src/config/db.js"
 import passport from "./src/config/passport.js"
 import authRoutes from "./src/routes/auth.js"
 import subjectRoutes from "./src/routes/subjects.js"
+import plannerRoutes from "./src/routes/planner.js"
+
 
 connectDB()
 
@@ -21,6 +23,7 @@ app.use(passport.initialize())
 // routes
 app.use('/api/auth', authRoutes)
 app.use('/api/subjects', subjectRoutes) 
+app.use('/api/planner', plannerRoutes)
 
 // test route
 app.get('/', (req, res) => {

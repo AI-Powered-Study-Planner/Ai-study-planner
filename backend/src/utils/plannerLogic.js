@@ -3,11 +3,10 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 export const generateSchedule = (subjects, dailyStudyHours, startDate) => {
   const schedule = []
   const currentDate = new Date(startDate)
- 
-  const sortedSubjects = [...subjects].sort((a, b) => 
+
+  const sortedSubjects = [...subjects].sort((a, b) =>
     new Date(a.examDate) - new Date(b.examDate)
   )
-
 
   const allTasks = []
 
@@ -15,7 +14,6 @@ export const generateSchedule = (subjects, dailyStudyHours, startDate) => {
     const examDate = new Date(subject.examDate)
     const today = new Date(startDate)
     const daysUntilExam = Math.ceil((examDate - today) / (1000 * 60 * 60 * 24))
-
 
     for (const chapter of subject.chapters) {
       allTasks.push({
@@ -43,7 +41,6 @@ export const generateSchedule = (subjects, dailyStudyHours, startDate) => {
     })
   }
 
-
   let taskIndex = 0
   let dayCount = 0
 
@@ -53,7 +50,6 @@ export const generateSchedule = (subjects, dailyStudyHours, startDate) => {
 
     const dayName = DAYS[date.getDay()]
 
-    // every 7th day is a break day
     if (dayCount > 0 && dayCount % 7 === 0) {
       schedule.push({
         date: new Date(date),
@@ -66,18 +62,12 @@ export const generateSchedule = (subjects, dailyStudyHours, startDate) => {
       continue
     }
 
-    // fill this day with tasks
     const dayTasks = []
     let hoursUsed = 0
 
     while (taskIndex < allTasks.length) {
       const task = allTasks[taskIndex]
-      
-      // check if adding this task exceeds daily limit
-      if (hoursUsed + task.estimatedHours > dailyStudyHours) {
-        break
-      }
-
+      if (hoursUsed + task.estimatedHours > dailyStudyHours) break
       dayTasks.push(task)
       hoursUsed += task.estimatedHours
       taskIndex++
@@ -99,12 +89,11 @@ export const generateSchedule = (subjects, dailyStudyHours, startDate) => {
   return schedule
 }
 
-
 export const detectBurnout = (schedule, dailyStudyHours) => {
   if (dailyStudyHours >= 8) {
     return {
       hasBurnoutRisk: true,
-      message: 'Your schedule is very intense! Consider reducing to 4-6 hours/day and adding more break days.'
+      message: 'Your schedule is very intense! Consider reducing to 4-6 hours/day.'
     }
   }
 
