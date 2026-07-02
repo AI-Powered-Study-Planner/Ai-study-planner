@@ -6,8 +6,9 @@ import passport from "./src/config/passport.js"
 import authRoutes from "./src/routes/auth.js"
 import subjectRoutes from "./src/routes/subjects.js"
 import plannerRoutes from "./src/routes/planner.js"
-
-
+import dashboardRoutes from './src/routes/dashboard.js'
+import progressRoutes from './src/routes/progress.js'
+import aiRoutes from "./src/routes/ai.js"
 connectDB()
 
 const app = express()
@@ -24,6 +25,9 @@ app.use(passport.initialize())
 app.use('/api/auth', authRoutes)
 app.use('/api/subjects', subjectRoutes) 
 app.use('/api/planner', plannerRoutes)
+app.use('/api/dashboard', dashboardRoutes)
+app.use('/api/progress', progressRoutes)
+app.use('/api/ai',aiRoutes)
 
 // test route
 app.get('/', (req, res) => {
