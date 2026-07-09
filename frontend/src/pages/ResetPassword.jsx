@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Key, RefreshCw } from 'lucide-react';
+import { authAPI } from '../services/api';
 
 const ResetPassword = () => {
   const location = useLocation();
@@ -18,14 +19,13 @@ const ResetPassword = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await fetch('/api/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+      const { ok, data } = await authAPI.resetPassword(formData);
+      if (!ok) {
+        console.warn('Reset password failed', data);
+      }
       navigate('/login');
     } catch (error) {
-      console.warn("Backend API offline. Resetting password locally.", error);
+      console.warn('Reset password request failed:', error);
       navigate('/login');
     } finally {
       setIsLoading(false);

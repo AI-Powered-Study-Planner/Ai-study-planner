@@ -16,6 +16,7 @@ import {
   Play,
   Loader2
 } from 'lucide-react';
+import { subjectsAPI, dashboardAPI, analyticsAPI } from '../services/api';
 
 const DashboardLayout = () => {
   const navigate = useNavigate();
@@ -81,6 +82,9 @@ const DashboardLayout = () => {
       { sender: 'ai', text: `Welcome, ${name}! 📚 I'm your AI Study Assistant. Ask me anything about your current workload, schedules, or specific concepts. I can also generate a revision plan for your upcoming exams.` }
     ];
   });
+  const [userName, setUserName] = useState(localStorage.getItem('user_name') || 'Student');
+  const [userEmail, setUserEmail] = useState(localStorage.getItem('user_email') || 'user@studyplanner.ai');
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [playVideoId, setPlayVideoId] = useState(null);
   const [playVideoTitle, setPlayVideoTitle] = useState("");
@@ -122,6 +126,70 @@ const DashboardLayout = () => {
       return copy;
     });
   }, [todayHours]);
+
+  useEffect(() => {
+    const loadBackendData = async () => {
+      setIsLoadingDashboard(true);
+      try {
+        const [{ data: subjectsData, ok: subjectsOk }, { data: dashboardData, ok: dashboardOk }, { data: weeklyData, ok: weeklyOk }] = await Promise.all([
+          subjectsAPI.getAll(),
+          dashboardAPI.get(),
+          analyticsAPI.weekly()
+        ]);
+
+        if (subjectsOk && subjectsData.subjects) {
+          setSubjects(subjectsData.subjects.map(subject => ({
+            id: subject._id,
+            name: subject.name,
+            examDate: subject.examDate,
+            difficulty: subject.difficulty,
+            color: subject.color
+          })));
+        }
+
+        if (dashboardOk && dashboardData) {
+          setUserName(dashboardData.student?.name || localStorage.getItem('user_name') || 'Student');
+          if (dashboardData.student?.name) {
+            localStorage.setItem('user_name', dashboardData.student.name);
+          }
+          setUserEmail(dashboardData.student?.email || localStorage.getItem('user_email') || 'user@studyplanner.ai');
+          if (dashboardData.student?.email) {
+            localStorage.setItem('user_email', dashboardData.student.email);
+          }
+          setStreak(dashboardData.streak?.current || 0);
+          setTodayHours(dashboardData.studyHours?.todayCompleted || 0);
+          if (dashboardData.todayTasks?.tasks) {
+            setTasks(dashboardData.todayTasks.tasks.map((task, idx) => ({
+              id: `backend-task-${idx}`,
+              text: `${task.subjectName ? `${task.subjectName}: ` : ''}${task.chapterName || task.name || 'Study task'}`,
+              completed: task.isCompleted || false,
+              category: task.subjectName || 'General',
+              urgency: 'Medium'
+            })));
+          }
+          if (dashboardData.upcomingExams) {
+            setExams(dashboardData.upcomingExams.map((exam, idx) => ({
+              id: `exam-${idx}`,
+              name: `${exam.subject} Exam`,
+              subject: exam.subject,
+              date: exam.examDate,
+              readiness: exam.difficulty === 'Hard' ? 45 : 70
+            })));
+          }
+        }
+
+        if (weeklyOk && weeklyData?.week) {
+          setWeeklyHours(weeklyData.week.map((day) => day.hoursStudied));
+        }
+      } catch (err) {
+        console.warn('Unable to fetch dashboard data:', err);
+      } finally {
+        setIsLoadingDashboard(false);
+      }
+    };
+
+    loadBackendData();
+  }, [setSubjects]);
 
   // --- BG TIMER WORK ---
   useEffect(() => {
@@ -361,11 +429,11 @@ const DashboardLayout = () => {
         <div className="border-t border-slate-800/80 pt-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-400 to-purple-500 flex items-center justify-center font-bold text-white shadow-md border border-slate-700/50">
-              U
+              {userName?.charAt(0).toUpperCase() || 'U'}
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">User Account</p>
-              <p className="text-[11px] text-slate-400 font-medium">user@studyplanner.ai</p>
+              <p className="text-sm font-semibold text-white">{userName}</p>
+              <p className="text-[11px] text-slate-400 font-medium break-all">{userEmail}</p>
             </div>
           </div>
           <button

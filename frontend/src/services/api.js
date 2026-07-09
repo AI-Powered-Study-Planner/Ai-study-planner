@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:5000/api'
+const BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 // helper to get token from localStorage
 const getToken = () => localStorage.getItem('token')
@@ -37,7 +37,7 @@ export const authAPI = {
   login: (body) => request('/auth/login', 'POST', body),
   forgotPassword: (body) => request('/auth/forgot-password', 'POST', body),
   resetPassword: (body) => request('/auth/reset-password', 'POST', body),
-  googleLogin: () => window.location.href = 'http://localhost:5000/api/auth/google'
+  googleLogin: () => window.location.href = '/api/auth/google'
 }
 
 // ─── SUBJECTS ───────────────────────────

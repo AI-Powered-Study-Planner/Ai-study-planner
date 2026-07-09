@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Send, ArrowLeft } from 'lucide-react';
+import { authAPI } from '../services/api';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -11,14 +12,13 @@ const ForgotPassword = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await fetch('/api/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
+      const { ok, data } = await authAPI.forgotPassword({ email });
+      if (!ok) {
+        console.warn('Forgot password failed', data);
+      }
       navigate('/reset-password', { state: { email } });
     } catch (error) {
-      console.warn("Backend API offline. Simulating code shipment.", error);
+      console.warn('Forgot password request failed:', error);
       navigate('/reset-password', { state: { email } });
     } finally {
       setIsLoading(false);

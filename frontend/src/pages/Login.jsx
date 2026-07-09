@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { authAPI } from '../services/api';
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const clearSessionData = () => {
@@ -27,24 +29,23 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
     clearSessionData();
+
     try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('token', data.token || 'mock-token-123');
-      } else {
-        localStorage.setItem('token', 'mock-token-123');
+      const { data, ok } = await authAPI.login(formData);
+      if (!ok) {
+        setError(data.message || 'Login failed. Please check your credentials.');
+        return;
       }
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user_email', data.user?.email || formData.email);
+      localStorage.setItem('user_name', data.user?.name || 'Student');
       navigate('/dashboard');
-    } catch (error) {
-      console.warn("Backend API offline. Logging in with simulated session.", error);
-      localStorage.setItem('token', 'mock-token-123');
-      navigate('/dashboard');
+    } catch (err) {
+      console.warn('Login request failed:', err);
+      setError('Unable to reach the backend. Please try again later.');
     } finally {
       setIsLoading(false);
     }
@@ -53,13 +54,7 @@ const Login = () => {
   const handleGoogleLoginClick = () => {
     setGoogleLoading(true);
     clearSessionData();
-    setTimeout(() => {
-      setGoogleLoading(false);
-      localStorage.setItem('token', 'mock-google-token-xyz');
-      localStorage.setItem('user_email', formData.email.trim() || 'student@gmail.com');
-      localStorage.setItem('user_name', 'Google Student');
-      navigate('/dashboard');
-    }, 1200);
+    authAPI.googleLogin();
   };
 
   return (
@@ -78,6 +73,11 @@ const Login = () => {
       </h2>
       
       <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center">
+            {error}
+          </div>
+        )}
         <div className="relative">
           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import {
   GraduationCap,
@@ -8,6 +8,7 @@ import {
   AlertCircle,
   FolderPlus
 } from 'lucide-react';
+import { subjectsAPI } from '../services/api';
 
 const Subjects = () => {
   const { subjects, setSubjects, setNotifications } = useOutletContext();
@@ -16,6 +17,32 @@ const Subjects = () => {
   const [newSubjectDate, setNewSubjectDate] = useState("");
   const [newSubjectDifficulty, setNewSubjectDifficulty] = useState("Medium");
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const loadSubjects = async () => {
+      setIsLoading(true);
+      try {
+        const { data, ok } = await subjectsAPI.getAll();
+        if (ok && data.subjects) {
+          setSubjects(data.subjects.map((subject) => ({
+            id: subject._id,
+            name: subject.name,
+            examDate: subject.examDate,
+            difficulty: subject.difficulty,
+            color: subject.color
+          })));
+        }
+      } catch (err) {
+        console.warn('Failed to load subjects:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSubjects();
+  }, [setSubjects]);
 
   // Difficulty badge styling
   const difficultyStyles = {
@@ -35,7 +62,7 @@ const Subjects = () => {
   };
 
   // Add new subject
-  const handleAddSubject = (e) => {
+  const handleAddSubject = async (e) => {
     e.preventDefault();
     if (!newSubjectName.trim() || !newSubjectDate) return;
 
@@ -46,33 +73,63 @@ const Subjects = () => {
       return;
     }
 
-    const newSubject = {
-      id: Date.now(),
-      name: newSubjectName.trim(),
-      examDate: newSubjectDate,
-      difficulty: newSubjectDifficulty
-    };
+    setIsLoading(true);
+    try {
+      const { data, ok } = await subjectsAPI.add({
+        name: newSubjectName.trim(),
+        examDate: newSubjectDate,
+        difficulty: newSubjectDifficulty,
+        color: '#667eea'
+      });
 
-    setSubjects(prev => [...prev, newSubject]);
-    setNotifications(prev => [
-      { id: Date.now(), text: `Added new subject: ${newSubject.name} (Exam: ${formatDate(newSubject.examDate)}, Difficulty: ${newSubject.difficulty})`, read: false },
-      ...prev
-    ]);
+      if (!ok) {
+        setError(data.message || 'Could not add subject');
+        return;
+      }
 
-    // Reset fields
-    setNewSubjectName("");
-    setNewSubjectDate("");
-    setNewSubjectDifficulty("Medium");
-    setShowAddForm(false);
+      const saved = {
+        id: data.subject._id,
+        name: data.subject.name,
+        examDate: data.subject.examDate,
+        difficulty: data.subject.difficulty,
+        color: data.subject.color
+      };
+
+      setSubjects(prev => [...prev, saved]);
+      setNotifications(prev => [
+        { id: Date.now(), text: `Added new subject: ${saved.name} (Exam: ${formatDate(saved.examDate)}, Difficulty: ${saved.difficulty})`, read: false },
+        ...prev
+      ]);
+
+      setNewSubjectName("");
+      setNewSubjectDate("");
+      setNewSubjectDifficulty("Medium");
+      setShowAddForm(false);
+      setError('');
+    } catch (err) {
+      console.warn('Add subject failed:', err);
+      setError('Failed to add subject.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Delete subject
-  const handleDeleteSubject = (id, name) => {
-    setSubjects(prev => prev.filter(s => s.id !== id));
-    setNotifications(prev => [
-      { id: Date.now(), text: `Removed subject: ${name}`, read: true },
-      ...prev
-    ]);
+  const handleDeleteSubject = async (id, name) => {
+    try {
+      const { ok, data } = await subjectsAPI.delete(id);
+      if (!ok) {
+        console.warn('Delete subject failed', data);
+        return;
+      }
+      setSubjects(prev => prev.filter(s => s.id !== id));
+      setNotifications(prev => [
+        { id: Date.now(), text: `Removed subject: ${name}`, read: true },
+        ...prev
+      ]);
+    } catch (err) {
+      console.warn('Delete subject error:', err);
+    }
   };
 
   // Analytics
@@ -154,6 +211,11 @@ const Subjects = () => {
           </h3>
 
           <form onSubmit={handleAddSubject} className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+        {error && (
+          <div className="col-span-full p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+            {error}
+          </div>
+        )}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Subject Name</label>
               <input

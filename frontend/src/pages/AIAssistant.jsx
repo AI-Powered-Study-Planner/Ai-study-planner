@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Loader2
 } from 'lucide-react';
+import { aiAPI } from '../services/api';
 
 const AIAssistant = () => {
   const { subjects } = useOutletContext();
@@ -118,66 +119,51 @@ const AIAssistant = () => {
     }
   };
 
-  // Trigger send query
-  const handleSend = (e, textOverride = null) => {
-    if (e) e.preventDefault();
-    const query = (textOverride || inputVal).trim();
-    if (!query) return;
-
-    // Add User Message
-    const newMsgUser = { sender: "user", text: query, level: academicLevel };
-    setMessages(prev => [...prev, newMsgUser]);
-    setInputVal("");
-    setIsStreaming(true);
-
-    // AI Responses Logic aligned with subject & academic levels
-    setTimeout(() => {
-      let explanation = "";
-
-      // Retrieve recommended videos
-      const currentSubject = selectedSubject || "Math";
-      const subjectLectures = lecturesDatabase[currentSubject] || lecturesDatabase.Math;
-      const recommendedVideos = subjectLectures[academicLevel] || subjectLectures.BS;
-
-      // 1. CONCEPT EXPLANATION OUTLINES BY LEVEL
-      if (academicLevel === "PhD") {
-        explanation = `🎓 **[PhD RESEARCH LEVEL SUMMARY - ${currentSubject}]**\n\nTo unpack the advanced dimensions of *"${query}"*:\n\n1. **Theoretical Foundations**: This concept interfaces with quantum operator mechanics and tensor fields. The principal model maps state space transformations via high-dimensional manifolds.\n\n2. **Critical Formalisms & Equations**:\nLet $\\mathcal{H}$ be the Hilbert space. The structural eigenvalues decompose as:\n$$\\hat{H}\\Psi = E\\Psi$$\n\n3. **Current Research Gaps**: Peer-reviewed publications target non-linear boundary constraints and mathematical singularities. Review IAS & Princeton seminar notes for asymptotic proofs.`;
-      } else if (academicLevel === "MS") {
-        explanation = `🔬 **[GRADUATE LEVEL ANALYSIS - ${currentSubject}]**\n\nAnalyzing *"${query}"* through a rigorous graduate lens:\n\n1. **Core Thesis**: We define this process as a set of differential constraint manifolds requiring numerical convergence.\n\n2. **Applied Math Models**:\nUsing partial differentiation matrices:\n$$\\nabla^2 \\phi = \\frac{1}{v^2} \\frac{\\partial^2 \\phi}{\\partial t^2}$$\n\n3. **Practical Applications**: High-performance computing kernels utilize these boundary models for simulation grids and neural tensor propagation.`;
-      } else if (academicLevel === "BS") {
-        explanation = `🎓 **[UNDERGRADUATE / BS ROADMAP - ${currentSubject}]**\n\nHere is the university-grade breakdown of *"${query}"*:\n\n1. **Primary Definition**: This topic outlines the relationship between variables (differential equations, system limits, or algorithm complexity classes).\n\n2. **Key Formulas to Memorize**:\n$$\\int u\\,dv = uv - \\int v\\,du$$\n\n3. **Common Exams Pitfalls**: Always check integration bases and coordinate boundaries. For code variables, draw a Call Stack tree to ensure recursive loops reach the base stop conditions cleanly.`;
-      } else if (academicLevel === "College") {
-        explanation = `🏫 **[COLLEGE LEVEL EXPLAINER - ${currentSubject}]**\n\nLet's break down *"${query}"* for standard exam boards:\n\n1. **Simplifying the Concept**: Think of this as a rules-based machine. You supply input vectors (like forces, equations, or statements), and it applies formulas to produce outputs.\n\n2. **Fundamental Formulas**:\n$$\\Sigma F = m \\cdot a$$\n\n3. **Revision Tip**: Practice 5 past exam board problems. Drawing visual diagrams (forces or flowcharts) makes this much easier.`;
-      } else {
-        // School level
-        explanation = `🎒 **[SCHOOL LEVEL SIMPLE EXPLAINER - ${currentSubject}]**\n\nLet's make *"${query}"* super simple and easy to understand! ✨\n\n1. **What is it?**: Imagine a balance scale. Whatever weight you add to one side, you have to add to the other side to keep it balanced. \n\n2. **Real-world Example**: If you drop a ball, gravity pulls it to the ground. That pull is a force! We can calculate it using simple multiplication: \n$$\\text{Force} = \\text{Weight} \\times \\text{Gravity}$$\n\n3. **Remember**: Always write down your units (like Meters, Seconds, or Kilograms) so you don't lose points in your homework!`;
-      }
-
-      setIsStreaming(false);
-      setMessages(prev => [
-        ...prev,
-        {
-          sender: "ai",
-          text: explanation,
-          level: academicLevel,
-          lectures: recommendedVideos
-        }
-      ]);
-
-      // Add to sidebar chat history if it was a new search
-      if (!activeHistoryId) {
-        const newHist = {
-          id: Date.now(),
-          title: query.length > 25 ? `${query.slice(0, 22)}...` : query,
-          level: academicLevel,
-          subject: currentSubject
-        };
-        setChatHistory(prev => [newHist, ...prev]);
-        setActiveHistoryId(newHist.id);
-      }
-    }, 1300);
+  const isGreetingMessage = (text) => {
+    const greeting = text.toLowerCase().trim();
+    return /^(hi|hello|hey|good morning|good afternoon|good evening|what(?:'s| is) up|sup|yo|greetings)(?:[!.,]?|\s+there[!.,]?)$/i.test(greeting);
   };
 
+  // Trigger send query
+  const handleSend = async (e, textOverride = null) => {
+  if (e) e.preventDefault();
+  const query = (textOverride || inputVal).trim();
+  if (!query) return;
+
+  const newMsgUser = { sender: 'user', text: query, level: academicLevel };
+  setMessages(prev => [...prev, newMsgUser]);
+  setInputVal('');
+  setIsStreaming(true);
+
+  try {
+    // always call real AI first
+    const { data, ok } = await aiAPI.chat({
+      message: `[Academic Level: ${academicLevel}] [Subject: ${selectedSubject}] ${query}`,
+      history: []
+    })
+
+    if (ok && data?.response) {
+      // get recommended lectures based on subject and level
+      const subjectLectures = lecturesDatabase[selectedSubject] || lecturesDatabase['Math']
+      const recommendedVideos = subjectLectures?.[academicLevel] || subjectLectures?.['BS'] || []
+
+      setMessages(prev => [...prev, {
+        sender: 'ai',
+        text: data.response,
+        lectures: recommendedVideos,
+        level: academicLevel
+      }])
+    } else {
+      // only use fallback if real AI fails
+      fallbackResponse()
+    }
+  } catch (error) {
+    console.warn('AI chat failed:', error)
+    fallbackResponse()
+  } finally {
+    setIsStreaming(false)
+  }
+}
   // Load chat from history sidebar
   const loadHistoryItem = (item) => {
     setActiveHistoryId(item.id);
